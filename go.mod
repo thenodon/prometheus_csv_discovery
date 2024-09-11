@@ -1,6 +1,6 @@
 module prometheus_csv_discovery
 
-go 1.23.1
+go 1.23
 
 require (
 	github.com/dimchansky/utfbom v1.1.1
