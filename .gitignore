@@ -16,5 +16,7 @@
 build/
 .vscode/
 .idea/
-config*.yaml
+config.yaml
 target/
+cover.out
+coverage.html
