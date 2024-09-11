@@ -75,15 +75,15 @@ func loadConfig(configPath string) (Config, error) {
 func main() {
 
 	versionFlag := flag.Bool("v", false, "Show version")
+	configPath := flag.String("config", "config.yaml", "Path to the configuration file")
 	flag.Parse()
+
 	if *versionFlag {
 		fmt.Printf("netflow-gateway, version %s\n", version)
 		os.Exit(0)
 	}
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
-	configPath := flag.String("config", "config.yaml", "Path to the configuration file")
-	flag.Parse()
 
 	config, err := loadConfig(*configPath)
 	if err != nil {
