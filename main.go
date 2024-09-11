@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"gopkg.in/yaml.v3"
 	"log/slog"
 	"net/http"
@@ -42,7 +43,8 @@ type Config struct {
 }
 
 var (
-	reader readers.CSVReader
+	reader  readers.CSVReader
+	version = "undefined"
 )
 
 func handlePrometheusDiscovery(w http.ResponseWriter, _ *http.Request) {
@@ -71,6 +73,14 @@ func loadConfig(configPath string) (Config, error) {
 }
 
 func main() {
+
+	versionFlag := flag.Bool("v", false, "Show version")
+	flag.Parse()
+	if *versionFlag {
+		fmt.Printf("netflow-gateway, version %s\n", version)
+		os.Exit(0)
+	}
+
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
 	configPath := flag.String("config", "config.yaml", "Path to the configuration file")
 	flag.Parse()
@@ -114,7 +124,7 @@ func main() {
 	if addr == "" {
 		addr = ":8080"
 	}
-	slog.Info("starting server", "addr", addr)
+	slog.Info("starting server", "addr", addr, "version", version)
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		slog.Error("starting server failed", "error", err.Error())
 	}
