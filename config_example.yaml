@@ -1,0 +1,20 @@
+csv_source: "file:///tmp/xyz.csv"
+# the column that contains the target values
+target_col: 0
+# the columns that contains the labels
+labels:
+  - col: 1
+    label_name: "description"
+# the delimiter used in the CSV file
+delimiter: ";"
+# the character used to indicate a comment in the CSV file
+comment_char: "#"
+
+# Only applicable if the source is a CSV http(s) endpoint
+# Optional
+http_config:
+  # whether to ignore SSL certificate errors
+  insecure: false
+  basic_auth:
+    username: "admin"
+    password: "admin"
