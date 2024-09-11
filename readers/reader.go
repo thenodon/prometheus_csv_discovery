@@ -3,11 +3,12 @@ package readers
 import (
 	"bufio"
 	"fmt"
-	"github.com/dimchansky/utfbom"
 	"io"
 	"log/slog"
 	"net/url"
 	"strings"
+
+	"github.com/dimchansky/utfbom"
 )
 
 type BasicAuthConfig struct {

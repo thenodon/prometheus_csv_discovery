@@ -2,10 +2,11 @@ package readers
 
 import (
 	"encoding/csv"
-	"github.com/fsnotify/fsnotify"
 	"log/slog"
 	"os"
 	"sync"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 func NewCSVFileReader(config CSVConfig) *CSVFileReader {

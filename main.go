@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"prometheus_csv_discovery/readers"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
