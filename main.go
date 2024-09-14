@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/segmentio/ksuid"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -15,6 +12,10 @@ import (
 	"prometheus_csv_discovery/readers"
 	"strconv"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/segmentio/ksuid"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/yaml.v3"
