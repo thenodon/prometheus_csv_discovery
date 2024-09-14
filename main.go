@@ -1,15 +1,22 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/segmentio/ksuid"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"prometheus_csv_discovery/readers"
+	"strconv"
+	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -17,6 +24,10 @@ const (
 	FILE  = "file"
 	HTTP  = "http"
 	HTTPS = "https"
+
+	MetricsPrefix     = "csv_discovery_"
+	LogFieldRequestID = "requestid"
+	LogFieldExecTime  = "exec_time"
 )
 
 type BasicAuthConfig struct {
@@ -120,7 +131,27 @@ func main() {
 		return
 	}
 
-	http.HandleFunc("/prometheus/discovery", handlePrometheusDiscovery)
+	responseTime := promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name: MetricsPrefix + "request_duration_seconds",
+		Help: "Histogram of the time (in seconds) each request took to complete.",
+		//Buckets:                     []float64{0.050, 0.100, 0.200, 0.500, 0.800, 1.00, 2.000, 3.000},
+		NativeHistogramBucketFactor:     1.1,
+		NativeHistogramMaxBucketNumber:  160,
+		NativeHistogramMinResetDuration: time.Hour,
+	},
+		[]string{"url", "status"},
+	)
+
+	http.Handle("/prometheus/discovery", logCall(promMonitor(http.HandlerFunc(handlePrometheusDiscovery), responseTime, "/prometheus/discovery")))
+	//http.HandleFunc("/prometheus/discovery", handlePrometheusDiscovery)
+	http.Handle("/metrics", promhttp.HandlerFor(
+		prometheus.DefaultGatherer,
+		promhttp.HandlerOpts{
+			// Opt into OpenMetrics to support exemplars.
+			EnableOpenMetrics: true,
+		},
+	))
+
 	addr := os.Getenv("SERVER_ADDR")
 	if addr == "" {
 		addr = ":8080"
@@ -155,4 +186,61 @@ func setupHttp(config Config, uri *url.URL, csvConfig readers.CSVConfig) {
 		}
 	}
 	reader = readers.NewCSVHttpReader(csvConfig)
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+	length     int
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func (lrw *loggingResponseWriter) Write(b []byte) (int, error) {
+	if lrw.statusCode == 0 {
+		lrw.statusCode = http.StatusOK
+	}
+	n, err := lrw.ResponseWriter.Write(b)
+	lrw.length += n
+	return n, err
+}
+
+func nextRequestID() ksuid.KSUID {
+	return ksuid.New()
+}
+
+func logCall(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		start := time.Now()
+
+		lrw := loggingResponseWriter{ResponseWriter: w}
+		requestId := nextRequestID()
+
+		ctx := context.WithValue(r.Context(), LogFieldRequestID, requestId)
+		next.ServeHTTP(&lrw, r.WithContext(ctx)) // call original
+
+		w.Header().Set("Content-Length", strconv.Itoa(lrw.length))
+		slog.Info("api call",
+			"method", r.Method,
+			"uri", r.RequestURI,
+			"status", lrw.statusCode,
+			"length", lrw.length,
+			LogFieldRequestID, ctx.Value(LogFieldRequestID),
+			LogFieldExecTime, time.Since(start).Microseconds())
+	})
+}
+
+func promMonitor(next http.Handler, ops *prometheus.HistogramVec, endpoint string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		start := time.Now()
+		lrw := loggingResponseWriter{ResponseWriter: w}
+		next.ServeHTTP(&lrw, r) // call original
+		response := time.Since(start).Seconds()
+		ops.With(prometheus.Labels{"url": endpoint, "status": strconv.Itoa(lrw.statusCode)}).Observe(response)
+	})
 }
