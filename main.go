@@ -92,7 +92,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Printf("netflow-gateway, version %s\n", version)
+		fmt.Printf("prometheus-csv-discovery, version %s\n", version)
 		os.Exit(0)
 	}
 
@@ -143,7 +143,7 @@ func main() {
 		[]string{"url", "status"},
 	)
 
-	http.Handle("/prometheus/discovery", logCall(promMonitor(http.HandlerFunc(handlePrometheusDiscovery), responseTime, "/prometheus/discovery")))
+	http.Handle("/prometheus-sd-targets", logCall(promMonitor(http.HandlerFunc(handlePrometheusDiscovery), responseTime, "/prometheus/discovery")))
 	//http.HandleFunc("/prometheus/discovery", handlePrometheusDiscovery)
 	http.Handle("/metrics", promhttp.HandlerFor(
 		prometheus.DefaultGatherer,
