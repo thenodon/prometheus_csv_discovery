@@ -27,6 +27,7 @@ type LabelConfig struct {
 }
 
 type CSVConfig struct {
+	Name        string
 	Url         url.URL
 	TargetCol   int
 	Labels      []LabelConfig
@@ -41,7 +42,7 @@ type CSVReader interface {
 
 type PrometheusTarget struct {
 	Targets []string          `json:"targets"`
-	Labels  map[string]string `json:"labels"`
+	Labels  map[string]string `json:"labels,omitempty"`
 }
 
 func stripComments(reader io.Reader, commentChar string) (io.Reader, error) {

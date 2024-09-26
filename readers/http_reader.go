@@ -1,9 +1,13 @@
 package readers
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/csv"
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
+	"io"
 	"net/http"
 )
 
@@ -16,8 +20,8 @@ func NewCSVHttpReader(config CSVConfig) *CSVHttpReader {
 }
 
 type CSVHttpReader struct {
-	CSVConfig       CSVConfig
-	targets         []PrometheusTarget
+	CSVConfig CSVConfig
+	//targets         []PrometheusTarget
 	insecure        bool
 	basicAuthConfig *BasicAuthConfig
 }
@@ -49,13 +53,36 @@ func (c *CSVHttpReader) Read() ([][]string, error) {
 	}
 	defer resp.Body.Close()
 
+	// Read a small portion of the file to detect encoding
+	buf := make([]byte, 1024)
+	n, err := resp.Body.Read(buf)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+
+	// Reset the response body reader
+	resp.Body = io.NopCloser(io.MultiReader(bytes.NewReader(buf[:n]), resp.Body))
+
+	// Check for UTF-16 BOM
+	if n >= 2 && (buf[0] == 0xFF && buf[1] == 0xFE) {
+		// UTF-16 Little Endian
+		resp.Body = io.NopCloser(transform.NewReader(resp.Body, unicode.UTF16(unicode.LittleEndian, unicode.ExpectBOM).NewDecoder()))
+	} else if n >= 2 && (buf[0] == 0xFE && buf[1] == 0xFF) {
+		// UTF-16 Big Endian
+		resp.Body = io.NopCloser(transform.NewReader(resp.Body, unicode.UTF16(unicode.BigEndian, unicode.ExpectBOM).NewDecoder()))
+	}
+
 	strippedReader, err := stripComments(resp.Body, c.CSVConfig.CommentChar)
 	if err != nil {
 		return nil, err
 	}
 
 	reader := csv.NewReader(strippedReader)
-	reader.Comma = rune(c.CSVConfig.Delimiter[0])
+	if c.CSVConfig.Delimiter == "" {
+		reader.Comma = ','
+	} else {
+		reader.Comma = rune(c.CSVConfig.Delimiter[0])
+	}
 	r, err := reader.ReadAll()
 	return r, err
 }
@@ -66,6 +93,7 @@ func (c *CSVHttpReader) PrometheusTargets() ([]PrometheusTarget, error) {
 		return nil, err
 	}
 
+	targets := make([]PrometheusTarget, 0)
 	for _, row := range csvData {
 		if len(row) <= c.CSVConfig.TargetCol {
 			continue
@@ -76,11 +104,15 @@ func (c *CSVHttpReader) PrometheusTargets() ([]PrometheusTarget, error) {
 				labels[labelConfig.LabelName] = row[labelConfig.Col]
 			}
 		}
-		target := PrometheusTarget{
-			Targets: []string{row[c.CSVConfig.TargetCol]},
-			Labels:  labels,
+		target := PrometheusTarget{}
+		if len(labels) == 0 {
+			target.Targets = []string{row[c.CSVConfig.TargetCol]}
+
+		} else {
+			target.Targets = []string{row[c.CSVConfig.TargetCol]}
+			target.Labels = labels
 		}
-		c.targets = append(c.targets, target)
+		targets = append(targets, target)
 	}
-	return c.targets, nil
+	return targets, nil
 }

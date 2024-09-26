@@ -47,6 +47,7 @@ type LabelConfig struct {
 }
 
 type Config struct {
+	Name        string        `yaml:"name"`
 	CSVSource   string        `yaml:"csv_source"`
 	TargetCol   int           `yaml:"target_col"`
 	Labels      []LabelConfig `yaml:"labels"`
@@ -55,13 +56,23 @@ type Config struct {
 	HttpConfig  *HttpConfig   `yaml:"http_config,omitempty"`
 }
 
+type DiscoveryTargets struct {
+	Configs []Config `yaml:"discovery_targets"`
+}
+
 var (
-	reader  readers.CSVReader
+	reader  map[string]readers.CSVReader
 	version = "undefined"
 )
 
-func handlePrometheusDiscovery(w http.ResponseWriter, _ *http.Request) {
-	data, err := reader.PrometheusTargets()
+func handlePrometheusDiscovery(w http.ResponseWriter, r *http.Request) {
+	queryParam := r.URL.Query().Get("discover")
+	discovery, exists := reader[queryParam]
+	if !exists {
+		http.Error(w, "No such discovery", http.StatusNotFound)
+		return
+	}
+	data, err := discovery.PrometheusTargets()
 	if err != nil {
 		http.Error(w, "Failed to get Prometheus targets", http.StatusInternalServerError)
 		return
@@ -75,8 +86,8 @@ func handlePrometheusDiscovery(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write(output)
 }
 
-func loadConfig(configPath string) (Config, error) {
-	var config Config
+func loadConfig(configPath string) (DiscoveryTargets, error) {
+	var config DiscoveryTargets
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return config, err
@@ -98,40 +109,61 @@ func main() {
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
 
-	config, err := loadConfig(*configPath)
+	configs, err := loadConfig(*configPath)
 	if err != nil {
 		slog.Error("read config file", slog.String("error", err.Error()))
 		return
 	}
-	uri, err := url.Parse(config.CSVSource)
-	if err != nil {
-		slog.Error("not a valid url", slog.String("error", err.Error()))
-		return
-	}
+	reader = make(map[string]readers.CSVReader)
+	for _, config := range configs.Configs {
+		uri, err := url.Parse(config.CSVSource)
+		if err != nil {
+			slog.Error("not a valid url", slog.String("error", err.Error()))
+			return
+		}
 
-	csvConfig := readers.CSVConfig{
-		Url:         *uri,
-		TargetCol:   config.TargetCol,
-		Labels:      make([]readers.LabelConfig, len(config.Labels)),
-		Delimiter:   config.Delimiter,
-		CommentChar: config.CommentChar,
-	}
-	for i, label := range config.Labels {
-		csvConfig.Labels[i] = readers.LabelConfig{
-			Col:       label.Col,
-			LabelName: label.LabelName,
+		csvConfig := readers.CSVConfig{
+			Name:        config.Name,
+			Url:         *uri,
+			TargetCol:   config.TargetCol,
+			Labels:      make([]readers.LabelConfig, len(config.Labels)),
+			Delimiter:   config.Delimiter,
+			CommentChar: config.CommentChar,
+		}
+
+		for i, label := range config.Labels {
+			csvConfig.Labels[i] = readers.LabelConfig{
+				Col:       label.Col,
+				LabelName: label.LabelName,
+			}
+		}
+
+		if uri.Scheme == FILE {
+			setupFile(csvConfig)
+		} else if uri.Scheme == HTTP || uri.Scheme == HTTPS {
+			defaultInsecure := true
+			httpConfig := readers.HttpConfig{
+				Insecure:        &defaultInsecure,
+				BasicAuthConfig: nil,
+			}
+			csvConfig.HttpConfig = &httpConfig
+			if config.HttpConfig.Insecure != nil {
+				csvConfig.HttpConfig.Insecure = config.HttpConfig.Insecure
+			}
+
+			if config.HttpConfig != nil && config.HttpConfig.BasicAuthConfig != nil {
+				csvConfig.HttpConfig.BasicAuthConfig = &readers.BasicAuthConfig{
+					Username: config.HttpConfig.BasicAuthConfig.Username,
+					Password: config.HttpConfig.BasicAuthConfig.Password,
+				}
+			}
+
+			setupHttp(csvConfig)
+		} else {
+			slog.Error("unsupported schema", slog.String("schema", uri.Scheme))
+			return
 		}
 	}
-
-	if uri.Scheme == FILE {
-		setupFile(csvConfig)
-	} else if uri.Scheme == HTTP || uri.Scheme == HTTPS {
-		setupHttp(config, uri, csvConfig)
-	} else {
-		slog.Error("unsupported schema", slog.String("schema", uri.Scheme))
-		return
-	}
-
 	responseTime := promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name: MetricsPrefix + "request_duration_seconds",
 		Help: "Histogram of the time (in seconds) each request took to complete.",
@@ -155,7 +187,7 @@ func main() {
 
 	addr := os.Getenv("SERVER_ADDR")
 	if addr == "" {
-		addr = ":8080"
+		addr = ":9911"
 	}
 	slog.Info("starting server", "addr", addr, "version", version)
 	if err := http.ListenAndServe(addr, nil); err != nil {
@@ -164,29 +196,11 @@ func main() {
 }
 
 func setupFile(csvConfig readers.CSVConfig) {
-	reader = readers.NewCSVFileReader(csvConfig)
+	reader[csvConfig.Name] = readers.NewCSVFileReader(csvConfig)
 }
 
-func setupHttp(config Config, uri *url.URL, csvConfig readers.CSVConfig) {
-	if config.HttpConfig != nil && uri.Scheme == HTTPS {
-		defaultInsecure := true
-		httpConfig := readers.HttpConfig{
-			Insecure:        &defaultInsecure,
-			BasicAuthConfig: nil,
-		}
-		csvConfig.HttpConfig = &httpConfig
-		if config.HttpConfig.Insecure != nil {
-			csvConfig.HttpConfig.Insecure = config.HttpConfig.Insecure
-		}
-	}
-
-	if config.HttpConfig != nil && config.HttpConfig.BasicAuthConfig != nil {
-		csvConfig.HttpConfig.BasicAuthConfig = &readers.BasicAuthConfig{
-			Username: config.HttpConfig.BasicAuthConfig.Username,
-			Password: config.HttpConfig.BasicAuthConfig.Password,
-		}
-	}
-	reader = readers.NewCSVHttpReader(csvConfig)
+func setupHttp(csvConfig readers.CSVConfig) {
+	reader[csvConfig.Name] = readers.NewCSVHttpReader(csvConfig)
 }
 
 type loggingResponseWriter struct {

@@ -1,20 +1,36 @@
-csv_source: "file:///tmp/xyz.csv"
-# the column that contains the target values
-target_col: 0
-# the columns that contains the labels
-labels:
-  - col: 1
-    label_name: "description"
-# the delimiter used in the CSV file
-delimiter: ";"
-# the character used to indicate a comment in the CSV file
-comment_char: "#"
+---
+discovery_targets:
+  - name: "abc"
+    csv_source: "https:///foo.com/abc_file.csv"
+    # the column that contains the target values
+    target_col: 0
+    # the columns that contains the labels
+    labels:
+      # col: 1 means the second column in the CSV file
+      - col: 1
+        # the name of the label
+        label_name: "description"
+    # the delimiter used in the CSV file
+    delimiter: ";"
+    # the character used to indicate a comment in the CSV file
+    comment_char: "#"
 
-# Only applicable if the source is a CSV http(s) endpoint
-# Optional
-http_config:
-  # whether to ignore SSL certificate errors
-  insecure: false
-  basic_auth:
-    username: "admin"
-    password: "admin"
+    # Only applicable if the source is a CSV http(s) endpoint
+    # Optional
+    http_config:
+      # whether to ignore SSL certificate errors
+      insecure: false
+      basic_auth:
+        username: "admin"
+        password: "admin"
+
+  - name: "xyz"
+    csv_source: "https:///bar.com/xyz.csv"
+    target_col: 0
+    comment_char: "#"
+    # This is a csv with just one column
+    http_config:
+      insecure: false
+      basic_auth:
+        username: "admin"
+        password: "admin"

@@ -6,6 +6,8 @@ require (
 	github.com/dimchansky/utfbom v1.1.1
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/prometheus/client_golang v1.20.3
+	github.com/segmentio/ksuid v1.0.4
+	golang.org/x/text v0.16.0
 	golang.org/x/tools v0.25.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -19,7 +21,6 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
-	github.com/segmentio/ksuid v1.0.4 // indirect
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.25.0 // indirect
