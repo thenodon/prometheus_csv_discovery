@@ -5,10 +5,11 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/csv"
-	"golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
 	"io"
 	"net/http"
+
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
 )
 
 func NewCSVHttpReader(config CSVConfig) *CSVHttpReader {

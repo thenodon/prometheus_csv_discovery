@@ -61,13 +61,13 @@ type DiscoveryTargets struct {
 }
 
 var (
-	reader  map[string]readers.CSVReader
-	version = "undefined"
+	allReaders map[string]readers.CSVReader
+	version    = "undefined"
 )
 
 func handlePrometheusDiscovery(w http.ResponseWriter, r *http.Request) {
 	queryParam := r.URL.Query().Get("discover")
-	discovery, exists := reader[queryParam]
+	discovery, exists := allReaders[queryParam]
 	if !exists {
 		http.Error(w, "No such discovery", http.StatusNotFound)
 		return
@@ -109,13 +109,14 @@ func main() {
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
 
-	configs, err := loadConfig(*configPath)
+	fullConfiguration, err := loadConfig(*configPath)
 	if err != nil {
 		slog.Error("read config file", slog.String("error", err.Error()))
 		return
 	}
-	reader = make(map[string]readers.CSVReader)
-	for _, config := range configs.Configs {
+	allReaders = make(map[string]readers.CSVReader)
+	// Setup readers
+	for _, config := range fullConfiguration.Configs {
 		uri, err := url.Parse(config.CSVSource)
 		if err != nil {
 			slog.Error("not a valid url", slog.String("error", err.Error()))
@@ -164,6 +165,7 @@ func main() {
 			return
 		}
 	}
+
 	responseTime := promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name: MetricsPrefix + "request_duration_seconds",
 		Help: "Histogram of the time (in seconds) each request took to complete.",
@@ -196,11 +198,11 @@ func main() {
 }
 
 func setupFile(csvConfig readers.CSVConfig) {
-	reader[csvConfig.Name] = readers.NewCSVFileReader(csvConfig)
+	allReaders[csvConfig.Name] = readers.NewCSVFileReader(csvConfig)
 }
 
 func setupHttp(csvConfig readers.CSVConfig) {
-	reader[csvConfig.Name] = readers.NewCSVHttpReader(csvConfig)
+	allReaders[csvConfig.Name] = readers.NewCSVHttpReader(csvConfig)
 }
 
 type loggingResponseWriter struct {
