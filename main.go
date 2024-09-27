@@ -148,17 +148,18 @@ func main() {
 				BasicAuthConfig: nil,
 			}
 			csvConfig.HttpConfig = &httpConfig
-			if config.HttpConfig.Insecure != nil {
-				csvConfig.HttpConfig.Insecure = config.HttpConfig.Insecure
-			}
+			if config.HttpConfig != nil {
+				if config.HttpConfig.Insecure != nil {
+					csvConfig.HttpConfig.Insecure = config.HttpConfig.Insecure
+				}
 
-			if config.HttpConfig != nil && config.HttpConfig.BasicAuthConfig != nil {
-				csvConfig.HttpConfig.BasicAuthConfig = &readers.BasicAuthConfig{
-					Username: config.HttpConfig.BasicAuthConfig.Username,
-					Password: config.HttpConfig.BasicAuthConfig.Password,
+				if config.HttpConfig != nil && config.HttpConfig.BasicAuthConfig != nil {
+					csvConfig.HttpConfig.BasicAuthConfig = &readers.BasicAuthConfig{
+						Username: config.HttpConfig.BasicAuthConfig.Username,
+						Password: config.HttpConfig.BasicAuthConfig.Password,
+					}
 				}
 			}
-
 			setupHttp(csvConfig)
 		} else {
 			slog.Error("unsupported schema", slog.String("schema", uri.Scheme))
