@@ -175,7 +175,7 @@ func main() {
 		NativeHistogramMaxBucketNumber:  160,
 		NativeHistogramMinResetDuration: time.Hour,
 	},
-		[]string{"url", "status"},
+		[]string{"url", "status", "discover"},
 	)
 
 	http.Handle("/prometheus-sd-targets", logCall(promMonitor(http.HandlerFunc(handlePrometheusDiscovery), responseTime, "/prometheus/discovery")))
@@ -259,6 +259,10 @@ func promMonitor(next http.Handler, ops *prometheus.HistogramVec, endpoint strin
 		lrw := loggingResponseWriter{ResponseWriter: w}
 		next.ServeHTTP(&lrw, r) // call original
 		response := time.Since(start).Seconds()
-		ops.With(prometheus.Labels{"url": endpoint, "status": strconv.Itoa(lrw.statusCode)}).Observe(response)
+		discover := r.URL.Query().Get("discover")
+		if discover == "" {
+			discover = "unknown"
+		}
+		ops.With(prometheus.Labels{"url": endpoint, "status": strconv.Itoa(lrw.statusCode), "discover": discover}).Observe(response)
 	})
 }
