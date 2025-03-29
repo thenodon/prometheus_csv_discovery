@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/csv"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"golang.org/x/text/encoding/unicode"
@@ -84,8 +85,16 @@ func (c *CSVHttpReader) Read() ([][]string, error) {
 	} else {
 		reader.Comma = rune(c.CSVConfig.Delimiter[0])
 	}
-	r, err := reader.ReadAll()
-	return r, err
+
+	// if header is true, read the first line and ignore it
+	if c.CSVConfig.Header {
+		_, err = reader.Read()
+		if err != nil {
+			slog.Error("read header", "error", err.Error())
+		}
+	}
+
+	return reader.ReadAll()
 }
 
 func (c *CSVHttpReader) PrometheusTargets() ([]PrometheusTarget, error) {
@@ -95,25 +104,7 @@ func (c *CSVHttpReader) PrometheusTargets() ([]PrometheusTarget, error) {
 	}
 
 	targets := make([]PrometheusTarget, 0)
-	for _, row := range csvData {
-		if len(row) <= c.CSVConfig.TargetCol {
-			continue
-		}
-		labels := make(map[string]string)
-		for _, labelConfig := range c.CSVConfig.Labels {
-			if len(row) > labelConfig.Col {
-				labels[labelConfig.LabelName] = row[labelConfig.Col]
-			}
-		}
-		target := PrometheusTarget{}
-		if len(labels) == 0 {
-			target.Targets = []string{row[c.CSVConfig.TargetCol]}
+	targets = parseTargets(csvData, &c.CSVConfig)
 
-		} else {
-			target.Targets = []string{row[c.CSVConfig.TargetCol]}
-			target.Labels = labels
-		}
-		targets = append(targets, target)
-	}
 	return targets, nil
 }
