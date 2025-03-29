@@ -1,6 +1,7 @@
 ---
 discovery_targets:
   - name: "abc"
+    # supported sources schemas are file:// and http(s)://
     csv_source: "https:///foo.com/abc_file.csv"
     # the column that contains the target values
     target_col: 0
@@ -9,11 +10,18 @@ discovery_targets:
       # col: 1 means the second column in the CSV file
       - col: 1
         # the name of the label
-        label_name: "description"
-    # the delimiter used in the CSV file
+        label_name: "__meta_description"
+    # the delimiter used in the CSV file, default is ","
     delimiter: ";"
-    # the character used to indicate a comment in the CSV file
+    # the character used to indicate a comment in the CSV file, default is "#"
     comment_char: "#"
+    # the first row in the CSV file is a header row - default is false
+    header: true
+    # the column that indicates if the target is active or not - default is that all targets are active
+    active_target:
+      col: 3
+      # the value that indicates the target is active, must match string exactly
+      label_value: "true"
 
     # Only applicable if the source is a CSV http(s) endpoint
     # Optional
@@ -24,13 +32,20 @@ discovery_targets:
         username: "admin"
         password: "admin"
 
-  - name: "xyz"
-    csv_source: "https:///bar.com/xyz.csv"
+  - name: "example1"
+    csv_source: "file:///<YOUR PATH>/prometheus_csv_discovery/examples/example1.csv"
     target_col: 0
+    labels:
+      - col: 1
+        label_name: "__meta_description"
+      - col: 2
+        label_name: "__meta_model"
+      - col: 3
+        label_name: "__meta_active"
+    active_target:
+      col: 3
+      label_value: "true"
+
     comment_char: "#"
-    # This is a csv with just one column
-    http_config:
-      insecure: false
-      basic_auth:
-        username: "admin"
-        password: "admin"
+    #delimiter: ","
+    header: true

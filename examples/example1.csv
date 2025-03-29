@@ -1,0 +1,32 @@
+target,location,model,active
+192.168.1.1,New York,ModelA,true
+192.168.1.2,Los Angeles,ModelB,false
+192.168.1.3,Chicago,ModelC,true
+192.168.1.4,Houston,ModelD,false
+192.168.1.5,Phoenix,ModelE,true
+192.168.1.6,Philadelphia,ModelF,false
+192.168.1.7,San Antonio,ModelG,true
+192.168.1.8,San Diego,ModelH,false
+192.168.1.9,Dallas,ModelI,true
+192.168.1.10,San Jose,ModelJ,false
+192.168.1.11,Austin,ModelK,true
+192.168.1.12,Jacksonville,ModelL,false
+# a comment
+192.168.1.13,Fort Worth,ModelM,true
+192.168.1.14,Columbus,ModelN,false
+192.168.1.15,Charlotte,ModelO,true
+192.168.1.16,San Francisco,ModelP,false
+192.168.1.17,Indianapolis,ModelQ,true
+192.168.1.18,Seattle,ModelR,false
+192.168.1.19,Denver,ModelS,true
+192.168.1.20,Washington,ModelT,false
+192.168.1.21,Boston,ModelU,true
+192.168.1.22,El Paso,ModelV,false
+192.168.1.23,Detroit,ModelW,true
+192.168.1.24,Nashville,ModelX,false
+192.168.1.25,Portland,ModelY,true
+192.168.1.26,Memphis,ModelZ,false
+192.168.1.27,Oklahoma City,ModelAA,true
+192.168.1.28,Las Vegas,ModelBB,false
+192.168.1.29,Louisville,ModelCC,true
+192.168.1.30,Baltimore,ModelDD,false

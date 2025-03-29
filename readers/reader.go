@@ -26,14 +26,21 @@ type LabelConfig struct {
 	LabelName string
 }
 
+type ActiveTarget struct {
+	Col        int
+	LabelValue string
+}
+
 type CSVConfig struct {
-	Name        string
-	Url         url.URL
-	TargetCol   int
-	Labels      []LabelConfig
-	Delimiter   string
-	CommentChar string
-	HttpConfig  *HttpConfig
+	Name         string
+	Url          url.URL
+	TargetCol    int
+	Labels       []LabelConfig
+	Delimiter    string
+	CommentChar  string
+	HttpConfig   *HttpConfig
+	Header       bool
+	ActiveTarget ActiveTarget
 }
 
 type CSVReader interface {
@@ -70,4 +77,35 @@ func stripComments(reader io.Reader, commentChar string) (io.Reader, error) {
 		_ = w.Close()
 	}()
 	return r, nil
+}
+
+func parseTargets(csvData [][]string, csvConfig *CSVConfig) []PrometheusTarget {
+	var targets []PrometheusTarget
+	for _, row := range csvData {
+		if len(row) <= csvConfig.TargetCol {
+			continue
+		}
+		// Check if the row matches the active target label value
+		if csvConfig.ActiveTarget.LabelValue != "" && (len(row) <= csvConfig.ActiveTarget.Col || row[csvConfig.ActiveTarget.Col] != csvConfig.ActiveTarget.LabelValue) {
+			continue
+		}
+
+		labels := make(map[string]string)
+		for _, labelConfig := range csvConfig.Labels {
+			if len(row) > labelConfig.Col {
+				labels[labelConfig.LabelName] = row[labelConfig.Col]
+			}
+		}
+		target := PrometheusTarget{}
+		if len(labels) == 0 {
+			target.Targets = []string{row[csvConfig.TargetCol]}
+
+		} else {
+			target.Targets = []string{row[csvConfig.TargetCol]}
+			target.Labels = labels
+		}
+
+		targets = append(targets, target)
+	}
+	return targets
 }

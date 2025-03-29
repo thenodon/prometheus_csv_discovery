@@ -46,14 +46,21 @@ type LabelConfig struct {
 	LabelName string `yaml:"label_name"`
 }
 
+type ActiveTarget struct {
+	Col        int    `yaml:"col"`
+	LabelValue string `yaml:"label_value"`
+}
+
 type Config struct {
-	Name        string        `yaml:"name"`
-	CSVSource   string        `yaml:"csv_source"`
-	TargetCol   int           `yaml:"target_col"`
-	Labels      []LabelConfig `yaml:"labels"`
-	Delimiter   string        `yaml:"delimiter"`
-	CommentChar string        `yaml:"comment_char"`
-	HttpConfig  *HttpConfig   `yaml:"http_config,omitempty"`
+	Name         string        `yaml:"name"`
+	CSVSource    string        `yaml:"csv_source"`
+	TargetCol    int           `yaml:"target_col"`
+	Labels       []LabelConfig `yaml:"labels"`
+	Delimiter    string        `yaml:"delimiter"`
+	CommentChar  string        `yaml:"comment_char"`
+	HttpConfig   *HttpConfig   `yaml:"http_config,omitempty"`
+	Header       bool          `yaml:"header"`
+	ActiveTarget ActiveTarget  `yaml:"active_target"`
 }
 
 type DiscoveryTargets struct {
@@ -96,6 +103,13 @@ func loadConfig(configPath string) (DiscoveryTargets, error) {
 	return config, err
 }
 
+func setDefault(value string, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
 func main() {
 
 	versionFlag := flag.Bool("v", false, "Show version")
@@ -128,8 +142,13 @@ func main() {
 			Url:         *uri,
 			TargetCol:   config.TargetCol,
 			Labels:      make([]readers.LabelConfig, len(config.Labels)),
-			Delimiter:   config.Delimiter,
-			CommentChar: config.CommentChar,
+			Delimiter:   setDefault(config.Delimiter, ","),
+			CommentChar: setDefault(config.CommentChar, "#"),
+			Header:      config.Header,
+			ActiveTarget: readers.ActiveTarget{
+				Col:        config.ActiveTarget.Col,
+				LabelValue: config.ActiveTarget.LabelValue,
+			},
 		}
 
 		for i, label := range config.Labels {
@@ -162,7 +181,7 @@ func main() {
 			}
 			setupHttp(csvConfig)
 		} else {
-			slog.Error("unsupported schema", slog.String("schema", uri.Scheme))
+			slog.Error("unsupported schema", slog.String("schema", uri.Scheme), slog.String("config_name", config.Name))
 			return
 		}
 	}

@@ -77,13 +77,22 @@ func (c *CSVFileReader) Read() ([][]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	/*
-		bodyBytes, err := io.ReadAll(strippedReader)
-		bodyString := string(bodyBytes)
-		fmt.Println(bodyString)
-	*/
+
 	reader := csv.NewReader(strippedReader)
-	reader.Comma = rune(c.CSVConfig.Delimiter[0])
+	if c.CSVConfig.Delimiter == "" {
+		reader.Comma = ','
+	} else {
+		reader.Comma = rune(c.CSVConfig.Delimiter[0])
+	}
+
+	// if header is true, read the first line and ignore it
+	if c.CSVConfig.Header {
+		_, err = reader.Read()
+		if err != nil {
+			slog.Error("read header", "error", err.Error())
+		}
+	}
+
 	return reader.ReadAll()
 }
 
@@ -105,22 +114,8 @@ func (c *CSVFileReader) reRead() error {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for _, row := range csvData {
-		if len(row) <= c.CSVConfig.TargetCol {
-			continue
-		}
-		labels := make(map[string]string)
-		for _, labelConfig := range c.CSVConfig.Labels {
-			if len(row) > labelConfig.Col {
-				labels[labelConfig.LabelName] = row[labelConfig.Col]
-			}
-		}
-		target := PrometheusTarget{
-			Targets: []string{row[c.CSVConfig.TargetCol]},
-			Labels:  labels,
-		}
-		c.targets = append(c.targets, target)
-	}
+
+	c.targets = parseTargets(csvData, &c.CSVConfig)
 
 	return nil
 
