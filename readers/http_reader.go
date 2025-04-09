@@ -16,8 +16,21 @@ import (
 func NewCSVHttpReader(config CSVConfig) *CSVHttpReader {
 
 	reader := CSVHttpReader{CSVConfig: config}
-	reader.insecure = true
-	reader.basicAuthConfig = nil
+	if config.HttpConfig != nil {
+		if config.HttpConfig.Insecure != nil {
+			reader.insecure = *config.HttpConfig.Insecure
+		} else {
+			reader.insecure = true
+		}
+
+		if config.HttpConfig.BasicAuthConfig != nil {
+			reader.basicAuthConfig = config.HttpConfig.BasicAuthConfig
+		} else {
+			reader.basicAuthConfig = nil
+		}
+	}
+	//reader.insecure = true
+	//reader.basicAuthConfig = nil
 	return &reader
 }
 
