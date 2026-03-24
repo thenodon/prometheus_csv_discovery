@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -65,6 +66,9 @@ func (c *CSVHttpReader) Read() ([][]string, error) {
 
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("failed to fetch CSV: status code %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
 
